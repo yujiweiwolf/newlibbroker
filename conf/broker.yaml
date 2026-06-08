@@ -1,0 +1,36 @@
+broker:
+  enable_query_only: false
+  query_asset_interval_ms: 0
+  query_position_interval_ms: 0
+  query_knock_interval_ms: 0
+  request_timeout_ms: 5000
+  disable_flow_control: false
+  flow_control:
+    - { market: ".SH", th_tps_limit: 55000, th_tps_queue_text_warning: 1, th_tps_queue_voice_warning: 500000, th_daily_warning: 17000000, th_daily_limit: 18000000 }
+    - { market: ".SZ", th_tps_limit: 55000, th_tps_queue_text_warning: 1, th_tps_queue_voice_warning: 500000, th_daily_warning: 17000000, th_daily_limit: 18000000 }
+    - { market: ".BJ", th_tps_limit: 55000, th_tps_queue_text_warning: 1, th_tps_queue_voice_warning: 500000, th_daily_warning: 17000000, th_daily_limit: 18000000 }
+  batch_order_size: 0
+  enable_stock_short_selling: false
+  idle_sleep_ns: 1000000
+  cpu_affinity: 5
+  node_name: 华泰金桥机房浩睿股票交易Broker
+  # 一台服务器上， 不管多少个broker, 共用这两块内存, 默认位置 /dev/shm/
+  mem_dir:
+  mem_req_file: broker_req
+  mem_rep_file: broker_rep
+
+
+fake:
+  fund_id: "S1"
+  trade_type: "spot"
+  name: "普通测试帐号"
+
+cffex:
+  # 股指期货自动开平仓时禁止平今
+  forbid_closing_today: true
+  # 股指期货每日最大开仓数限制（0-禁止开仓，-1：无限制）
+  max_today_opening_volume: 20
+
+log:
+  level: trace
+  async: false
