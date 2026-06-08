@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(libbroker-iceoryx)
+project(newlibbroker)
 
 # Release Debug
 set(CMAKE_BUILD_TYPE "Debug")

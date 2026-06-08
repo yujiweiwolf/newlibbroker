@@ -12,7 +12,6 @@ class MemBaseBroker {
     MemBaseBroker();
     virtual ~MemBaseBroker();
 
- protected:
     virtual void OnInit();
 
     virtual void OnQueryTradeAsset(MemUnionMessage* req);

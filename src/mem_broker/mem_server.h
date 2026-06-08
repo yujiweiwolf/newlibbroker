@@ -16,6 +16,12 @@ class MemBrokerServer {
 
     void Init(MemBrokerOptionsPtr option, MemBaseBrokerPtr broker);
 
+    void SendQueryTradeAsset(MemUnionMessage* msg);
+    void SendQueryTradePosition(MemUnionMessage* msg);
+    void SendQueryTradeKnock(MemUnionMessage* msg);
+    void SendTradeOrder(MemUnionMessage* msg);
+    void SendTradeWithdraw(MemUnionMessage* msg);
+
 private:
     MemBaseBrokerPtr broker_;
 

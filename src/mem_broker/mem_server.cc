@@ -16,5 +16,9 @@ void MemBrokerServer::Init(MemBrokerOptionsPtr option, MemBaseBrokerPtr broker) 
 
 }
 
+void MemBrokerServer::SendQueryTradeAsset(MemUnionMessage* msg) {
+    broker_->OnQueryTradeAsset(msg);
+}
+
 }  // namespace co
 
