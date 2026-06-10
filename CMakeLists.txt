@@ -37,3 +37,7 @@ aux_source_directory (./src/imitate_broker MEM_TEST_LIST)
 add_executable(imitate_broker ${MEM_TEST_LIST})
 target_link_libraries(imitate_broker
         membroker coral x stdc++fs yaml-cpp boost_date_time boost_filesystem boost_regex boost_system  boost_chrono boost_log boost_program_options boost_thread boost_iostreams boost_context boost_coroutine z protobuf protobuf-lite sodium ssl crypto iconv pthread dl iceoryx2-cxx::static-lib-cxx)
+
+aux_source_directory (./src/crtp SRC_CRTP)
+add_executable(crtp src/crtp/main.cc src/crtp/mem_base_broker.cc src/crtp/imitate_broker.cc)
+target_link_libraries(crtp coral x stdc++fs yaml-cpp boost_date_time boost_filesystem boost_regex boost_system  boost_chrono boost_log boost_program_options boost_thread boost_iostreams z protobuf protobuf-lite sodium ssl crypto iconv pthread dl iceoryx2-cxx::static-lib-cxx)

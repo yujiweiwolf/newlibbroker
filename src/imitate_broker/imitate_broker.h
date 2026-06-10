@@ -7,17 +7,18 @@
 #include <mutex>
 #include "x/x.h"
 #include "coral/coral.h"
-#include "../mem_broker/mem_base_broker.h"
 #include "../mem_broker/mem_server.h"
+#include "../mem_broker/mem_struct.h"
 
 using namespace std;
 namespace co {
-class TestBroker: public MemBaseBroker {
+
+// 策略类：实现具体的 broker 业务逻辑
+class TestBroker {
  public:
     TestBroker() = default;
     ~TestBroker() = default;
 
- protected:
     void OnInit();
     void OnQueryTradeAsset(MemUnionMessage* req);
     void OnQueryTradePosition(MemUnionMessage* req);
@@ -38,8 +39,7 @@ class TestBroker: public MemBaseBroker {
     std::shared_ptr<std::thread> rep_thread_ = nullptr;
     std::mutex mutex_;
     std::unordered_map<std::string, std::pair<int64_t, void*>> all_req_;
-    std::unordered_map<std::string, std::pair<int64_t, MemTradeOrder>> all_order_; // key is order_no
-    std::unordered_map<std::string, std::vector<std::string>> all_batch_; // key is batch_no, value is order_no
+    std::unordered_map<std::string, std::pair<int64_t, MemTradeOrder>> all_order_;
+    std::unordered_map<std::string, std::vector<std::string>> all_batch_;
 };
 }  // namespace co
-
