@@ -17,7 +17,7 @@ class TestBroker: public MemBaseBrokerT<TestBroker> {
     TestBroker() = default;
     ~TestBroker() = default;
     void OnInit();
-    void OnTradeOrder(MemUnionMessage* msg);
+    void OnTradeOrder(MemTradeOrderMessage* msg);
 
 };
 }  // namespace co

@@ -19,11 +19,16 @@ class MemBrokerServer {
     ~MemBrokerServer() {}
 
     void Init(MemBrokerOptionsPtr option) {
+        broker_.SetServer(this);
         broker_.OnInit();
-    };
+    }
 
-    void SendQueryTradeAsset(MemUnionMessage* msg) {
+    void SendQueryTradeAsset(MemQueryMessage* msg) {
         broker_.OnQueryTradeAsset(msg);
+    }
+
+    void OnRspQryAsset(MemTradeAsset* asset) {
+        LOG_INFO << "OnRspQryAsset " << ToString(asset);
     }
 
  private:

@@ -7,7 +7,7 @@ int main(int argc, char* argv[]) {
         TestBroker broker;
         MemBrokerOptions opt;
         broker.Init(opt);
-        MemUnionMessage msg;
+        MemTradeOrderMessage msg;
         broker.SendTradeOrder(&msg);
     } catch (std::exception& e) {
         LOG_FATAL << "server is crashed, " << e.what();

@@ -8,9 +8,8 @@ void TestBroker::OnInit() {
     LOG_INFO << "initialize TestBroker successfully";
 }
 
-void TestBroker::OnTradeOrder(MemUnionMessage* msg) {
+void TestBroker::OnTradeOrder(MemTradeOrderMessage* msg) {
     LOG_INFO << __FUNCTION__;
-    msg->msg_type = kMemTypeTradeOrderRep;
     SendRtnMessage(msg);
     return;
 }

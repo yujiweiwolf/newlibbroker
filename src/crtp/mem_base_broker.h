@@ -23,12 +23,12 @@ public:
         }
     }
 
-    void SendTradeOrder(MemUnionMessage *msg) {
+    void SendTradeOrder(MemTradeOrderMessage *msg) {
         LOG_INFO << __FUNCTION__;
         OnTradeOrder(msg);
     }
 
-    void SendRtnMessage(MemUnionMessage *msg) {
+    void SendRtnMessage(MemTradeOrderMessage *msg) {
         LOG_INFO << __FUNCTION__;
     }
 
@@ -38,7 +38,7 @@ protected:
         static_cast<Derived*>(this)->OnInit();
     }
 
-    virtual void OnTradeOrder(MemUnionMessage *msg) {
+    virtual void OnTradeOrder(MemTradeOrderMessage *msg) {
         static_cast<Derived*>(this)->OnTradeOrder(msg);
     }
 };
