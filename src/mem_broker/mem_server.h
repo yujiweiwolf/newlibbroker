@@ -24,11 +24,23 @@ class MemBrokerServer {
     }
 
     void SendQueryTradeAsset(MemQueryMessage* msg) {
-        broker_.OnQueryTradeAsset(msg);
+        broker_.SendQueryTradeAsset(msg);
     }
 
     void OnRspQryAsset(MemTradeAsset* asset) {
         LOG_INFO << "OnRspQryAsset " << ToString(asset);
+    }
+
+    void SendTradeOrder(MemTradeOrderMessage* msg) {
+        broker_.SendTradeOrder(msg);
+    }
+
+    void OnRspTradeOrder(MemTradeOrderMessage* msg) {
+        LOG_INFO << "OnRspTradeOrder " << ToString(msg);
+        for (int i = 0; i < msg->items_size; ++i) {
+            auto order = msg->items[i];
+            LOG_INFO << ToString(&order);
+        }
     }
 
  private:

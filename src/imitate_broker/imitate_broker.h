@@ -23,10 +23,10 @@ class TestBroker {
     }
 
     void OnInit();
-    void OnQueryTradeAsset(MemQueryMessage* req);
+    void SendQueryTradeAsset(MemQueryMessage* req);
     void OnQueryTradePosition(MemQueryMessage* req);
     void OnQueryTradeKnock(MemQueryMessage* req);
-    void OnTradeOrder(MemTradeOrderMessage* msg);
+    void SendTradeOrder(MemTradeOrderMessage* msg);
     void OnTradeWithdraw(MemTradeWithdrawMessage* msg);
 
  private:
