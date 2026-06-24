@@ -7,6 +7,7 @@
 #include "FragmentAssembler.h"
 #include "mem_struct.h"
 using namespace aeron;
+const int64_t INNER_AERON_STREAM_ID = 2003;
 
 namespace co {
 
@@ -25,30 +26,60 @@ class MemBrokerServer {
         aeron::Context context;
         std::shared_ptr<Aeron> aeron = Aeron::connect(context);
         // signal(SIGINT, sigIntHandler);
-        string AERON_CHANNEL = opt_->aeron_channel();
-        int64_t AERON_STREAM_ID = opt_->req_stream_id();
+        string aeron_channel = opt_->aeron_channel();
+        int64_t req_stream_id = opt_->req_stream_id();
+        int64_t rep_stream_id = opt_->rep_stream_id();
 
-        std::int64_t subId = aeron->addSubscription(AERON_CHANNEL, AERON_STREAM_ID);
-        std::shared_ptr<Subscription> subscription = aeron->findSubscription(subId);
-
-        while (!subscription) {
+        std::int64_t req_sub_id = aeron->addSubscription(aeron_channel, req_stream_id);
+        req_subscription_ = aeron->findSubscription(req_sub_id);
+        
+        while (!req_subscription_) {
             std::this_thread::yield();
-            subscription = aeron->findSubscription(subId);
+            req_subscription_ = aeron->findSubscription(req_sub_id);
         }
 
-        std::cout << "Waiting for publisher..." << std::endl;
-        while (!subscription->isConnected()) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        }
-        std::cout << "Publisher connected!" << std::endl;
 
+        // 创建内部流 Publication（用于写入响应）
+        std::int64_t innerPubId = aeron->addPublication(aeron_channel, INNER_AERON_STREAM_ID);
+        inner_publication_ = aeron->findPublication(innerPubId);
+        while (!inner_publication_) {
+            std::this_thread::yield();
+            inner_publication_ = aeron->findPublication(innerPubId);
+        }
+
+        // 创建应答流 Publication（供外部订阅 rep_stream）
+        std::int64_t repPubId = aeron->addPublication(aeron_channel, rep_stream_id);
+        rep_publication_ = aeron->findPublication(repPubId);
+        while (!rep_publication_) {
+            std::this_thread::yield();
+            rep_publication_ = aeron->findPublication(repPubId);
+        }
+
+        // 创建内部流 Subscription（用于读取响应回传）
+        std::int64_t innerSubId = aeron->addSubscription(aeron_channel, INNER_AERON_STREAM_ID);
+        inner_subscription_ = aeron->findSubscription(innerSubId);
+        while (!inner_subscription_) {
+            std::this_thread::yield();
+            inner_subscription_ = aeron->findSubscription(innerSubId);
+        }
+    }
+
+    void Start() {
+        std::thread run_thread(&MemBrokerServer::Run, this);
+        run_thread.detach();
+    }
+
+    void Run() {
         FragmentAssembler fragmentAssembler([this](const AtomicBuffer& buffer, util::index_t offset, util::index_t length, const Header& header) {
             HandleMessage(buffer, offset, length, header);
         });
         fragment_handler_t fragHandler = fragmentAssembler.handler();
 
         while (true) {
-            const int fragmentsRead = subscription->poll(fragHandler, 10);
+            // 先读完所有请求消息
+            while (req_subscription_->poll(fragHandler, 1) > 0) {}
+            // 再读完所有内部流消息
+            while (inner_subscription_->poll(fragHandler, 1) > 0) {}
         }
     }
 
@@ -59,6 +90,21 @@ class MemBrokerServer {
     void OnRspQryAsset(MemTradeAsset* asset) {
         LOG_INFO << "OnRspQryAsset " << ToString(asset);
     }
+    void SendQueryTradePosition(MemQueryMessage* msg) {
+        broker_.OnQueryTradePosition(msg);
+    }
+
+    void OnRspQryPosition(MemTradePosition* pos) {
+        LOG_INFO << "OnRspQryPosition " << ToString(pos);
+    }
+
+    void SendQueryTradeKnock(MemQueryMessage* msg) {
+        broker_.OnQueryTradeKnock(msg);
+    }
+
+    void OnRspQryKnock(MemTradeKnock* knock) {
+        LOG_INFO << "OnRspQryKnock " << ToString(knock);
+    }
 
     void SendTradeOrder(MemTradeOrderMessage* msg) {
         broker_.SendTradeOrder(msg);
@@ -66,9 +112,20 @@ class MemBrokerServer {
 
     void OnRspTradeOrder(MemTradeOrderMessage* msg) {
         LOG_INFO << "OnRspTradeOrder " << ToString(msg);
-        for (int i = 0; i < msg->items_size; ++i) {
-            auto order = msg->items[i];
-            LOG_INFO << ToString(&order);
+
+        // 写入内部流，供 Init 中的内部 Subscription 回读
+        size_t body_len = sizeof(MemTradeOrderMessage) + sizeof(MemTradeOrder) * msg->items_size;
+        MemFrameHeader frame{};
+        frame.type = kMemTypeTradeOrderRep;
+        frame.body_length = static_cast<int64_t>(body_len);
+        size_t total_len = sizeof(MemFrameHeader) + body_len;
+        std::vector<std::uint8_t> buffer(total_len, 0);
+        memcpy(buffer.data(), &frame, sizeof(MemFrameHeader));
+        memcpy(buffer.data() + sizeof(MemFrameHeader), msg, body_len);
+        AtomicBuffer ab(buffer.data(), buffer.size());
+        std::int64_t result = inner_publication_->offer(ab, 0, total_len);
+        if (result < 0) {
+            LOG_WARN << "OnRspTradeOrder inner publish failed, result: " << result;
         }
     }
 
@@ -80,9 +137,7 @@ class MemBrokerServer {
         LOG_INFO << "OnRspTradeWithdraw " << ToString(msg); 
     }
 
- private:
-    MemBrokerOptionsPtr opt_;
-    Broker broker_;
+private:
 
     void HandleMessage(const AtomicBuffer& buffer, util::index_t offset, util::index_t length, const Header&) {
         constexpr util::index_t kFrameHeaderSize = static_cast<util::index_t>(sizeof(MemFrameHeader));
@@ -115,13 +170,35 @@ class MemBrokerServer {
             case kMemTypeQueryTradePositionReq: {
                 const auto* msg = reinterpret_cast<const MemQueryMessage*>(body);
                 MemQueryMessage req = *msg;
-                broker_.SendQueryTradeAsset(&req);
+                SendQueryTradePosition(&req);
                 break;
             }
             case kMemTypeQueryTradeKnockReq: {
                 const auto* msg = reinterpret_cast<const MemQueryMessage*>(body);
                 MemQueryMessage req = *msg;
-                broker_.SendQueryTradeAsset(&req);
+                SendQueryTradeKnock(&req);
+                break;
+            }
+            case kMemTypeTradeOrderReq: {
+                // MemTradeOrderMessage 是变长结构（尾部 items[]），不能值拷贝，直接传 body 指针
+                auto* msg = reinterpret_cast<MemTradeOrderMessage*>(data + kFrameHeaderSize);
+                SendTradeOrder(msg);
+                break;
+            }
+            case kMemTypeTradeWithdrawReq: {
+                const auto* msg = reinterpret_cast<const MemTradeWithdrawMessage*>(body);
+                MemTradeWithdrawMessage req = *msg;
+                SendTradeWithdraw(&req);
+                break;
+            }
+            case kMemTypeTradeOrderRep: {
+                // 内部流回读的报单响应，转发到 rep_stream 供外部订阅
+                size_t total_len = static_cast<size_t>(kFrameHeaderSize + body_length);
+                AtomicBuffer ab(data, total_len);
+                std::int64_t result = rep_publication_->offer(ab, 0, total_len);
+                if (result < 0) {
+                    LOG_WARN << "kMemTypeTradeOrderRep republish failed, result: " << result;
+                }
                 break;
             }
             default:
@@ -132,6 +209,13 @@ class MemBrokerServer {
 
         }
     }
-};
 
+ private:
+    MemBrokerOptionsPtr opt_;
+    Broker broker_;
+    std::shared_ptr<Subscription> req_subscription_;
+    std::shared_ptr<Publication> inner_publication_;
+    std::shared_ptr<Subscription> inner_subscription_;
+    std::shared_ptr<Publication> rep_publication_;
+};
 }  // namespace co

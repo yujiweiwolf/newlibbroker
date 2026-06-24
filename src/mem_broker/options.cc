@@ -87,6 +87,7 @@ std::shared_ptr<MemBrokerOptions> MemBrokerOptions::Load(const std::string& file
     opt->mem_rep_file_ = getStr(broker, "mem_rep_file");
     opt->req_stream_id_ = getInt(broker, "req_stream_id");
     opt->rep_stream_id_ = getInt(broker, "rep_stream_id");
+    opt->inner_stream_id_ = getInt(broker, "inner_stream_id");
     opt->aeron_channel_ = getStr(broker, "aeron_channel");
     return opt;
 }
@@ -120,6 +121,7 @@ string MemBrokerOptions::ToString() {
        << "  mem_rep_file: " << mem_rep_file_ << std::endl
        << "  req_stream_id: " << req_stream_id_ << std::endl
        << "  rep_stream_id: " << rep_stream_id_ << std::endl
+       << "  inner_stream_id: " << inner_stream_id_ << std::endl
        << "  aeron_channel: " << aeron_channel_ << std::endl
        << log_opt_->ToString();
     return ss.str();

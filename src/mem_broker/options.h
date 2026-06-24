@@ -149,6 +149,12 @@ class MemBrokerOptions {
     inline int64_t rep_stream_id() const {
         return rep_stream_id_;
     }
+    inline int64_t inner_stream_id() const {
+        return inner_stream_id_;
+    }
+    inline void set_inner_stream_id(int64_t stream_id) {
+        inner_stream_id_ = stream_id;
+    }
     inline std::string aeron_channel() const {
         return aeron_channel_;
     }
@@ -179,6 +185,7 @@ class MemBrokerOptions {
     string mem_rep_file_;
     int64_t req_stream_id_ = 0;  // iceoryx2 请求流 ID
     int64_t rep_stream_id_ = 0;  // iceoryx2 应答流 ID
+    int64_t inner_stream_id_ = 0;  // 内部流 ID
     string aeron_channel_;       // aeron channel 配置
 };
     typedef std::shared_ptr<MemBrokerOptions> MemBrokerOptionsPtr;

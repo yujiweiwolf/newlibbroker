@@ -41,7 +41,7 @@ void TestBroker::SendTradeOrder(MemTradeOrderMessage* req) {
     server_->OnRspTradeOrder(req);
 }
 
-void TestBroker::SendTradeeWithdraw(MemTradeWithdrawMessage* req) {
+void TestBroker::SendTradeWithdraw(MemTradeWithdrawMessage* req) {
     LOG_INFO << ToString(req);
     server_->OnRspTradeWithdraw(req);
 }

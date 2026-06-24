@@ -4,6 +4,7 @@
 #include "x/x.h"
 #include "coral/coral.h"
 #include "Aeron.h"
+#include "FragmentAssembler.h"
 #include "../mem_broker/mem_struct.h"
 
 using namespace co;
@@ -16,38 +17,42 @@ const int64_t AERON_REQ_STREAM_ID = 1001;
 const int64_t AERON_REP_STREAM_ID = 1002;
 
 void order_sh(Publication& publication) {
-    MemTradeOrderMessage msg = {};
-    strcpy(msg.id, x::UUID().c_str());
-    strcpy(msg.fund_id, fund_id);
-    msg.items_size = 1;
-    msg.bs_flag = co::kBsFlagBuy;
-    msg.timestamp = x::RawDateTime();
-    strcpy(msg.items[0].code, "600000.SH");
-    msg.items[0].market = kMarketSH;
-    msg.items[0].volume = 100;
-    msg.items[0].price = 9.99;
+    int64_t order_num = 2;
+    size_t body_len = sizeof(MemTradeOrderMessage) + sizeof(MemTradeOrder) * order_num;
+    LOG_INFO << "sizeof(MemTradeOrderMessage): " << sizeof(MemTradeOrderMessage)
+             << ", sizeof(MemTradeOrder): " << sizeof(MemTradeOrder)
+             << ", sizeof(MemFrameHeader): " << sizeof(MemFrameHeader)
+             << ", body_len: " << body_len;
+    std::vector<std::uint8_t> buffer1(body_len);
+    auto *msg = reinterpret_cast<co::MemTradeOrderMessage *>(buffer1.data());
+    msg->items_size = order_num;
+    strcpy(msg->id, x::UUID().c_str());
+    msg->timestamp = x::RawDateTime();
+    for (int j = 0; j < msg->items_size; j++) {
+        strcpy(msg->items[j].code, "000001.SZ");
+        strcpy(msg->items[j].name, "平安银行");
+        msg->items[j].bs_flag = 1;
+        msg->items[j].volume = 100 * (j + 1);
+        msg->items[j].price = 0.1 * (j + 1);
+    }
 
-    string volume_input;
-    cout << "please input volume" << endl;
-    cin >> volume_input;
-    msg.items[0].volume = atoll(volume_input.c_str());
-
-    size_t body_len = sizeof(MemTradeOrderMessage) + sizeof(MemTradeOrder) * msg.items_size;
 
     MemFrameHeader frame{};
     frame.type = kMemTypeTradeOrderReq;
     frame.body_length = static_cast<int64_t>(body_len);
 
     size_t total_len = sizeof(MemFrameHeader) + body_len;
+    LOG_INFO << "total_len: " << total_len
+             << ", frame.body_length: " << frame.body_length;
     std::vector<std::uint8_t> buffer(total_len, 0);
     memcpy(buffer.data(), &frame, sizeof(MemFrameHeader));
-    memcpy(buffer.data() + sizeof(MemFrameHeader), &msg, body_len);
+    memcpy(buffer.data() + sizeof(MemFrameHeader), msg, body_len);
 
     AtomicBuffer ab(buffer.data(), buffer.size());
     std::int64_t result = publication.offer(ab, 0, total_len);
-    LOG_INFO << "send order_sh, code: " << msg.items[0].code
-             << ", volume: " << msg.items[0].volume
-             << ", price: " << msg.items[0].price
+    LOG_INFO << "send order_sh, code: " << msg->items[0].code
+             << ", volume: " << msg->items[0].volume
+             << ", price: " << msg->items[0].price
              << ", result: " << result;
 }
 
@@ -151,12 +156,41 @@ int main(int argc, char* argv[]) {
             publication = aeron->findPublication(pubId);
         }
 
-        // 等待 Subscriber 连接
-        std::cout << "Waiting for subscriber..." << std::endl;
-        while (!publication->isConnected()) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+//        // 等待 Subscriber 连接
+//        std::cout << "Waiting for subscriber..." << std::endl;
+//        while (!publication->isConnected()) {
+//            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+//        }
+//        std::cout << "Subscriber connected!" << std::endl;
+
+        // 创建 Subscription（应答通道）
+        std::int64_t repSubId = aeron->addSubscription(AERON_CHANNEL, AERON_REP_STREAM_ID);
+        std::shared_ptr<Subscription> rep_subscription = aeron->findSubscription(repSubId);
+        while (!rep_subscription) {
+            std::this_thread::yield();
+            rep_subscription = aeron->findSubscription(repSubId);
         }
-        std::cout << "Subscriber connected!" << std::endl;
+
+        // 启动线程读取应答流
+        std::thread rep_thread([rep_subscription]() {
+            aeron::FragmentAssembler repAssembler([](const AtomicBuffer& buffer, util::index_t offset, util::index_t length, const Header&) {
+                auto* data = buffer.buffer() + offset;
+                const auto* frame = reinterpret_cast<const MemFrameHeader*>(data);
+                LOG_INFO << "recv rep, type: " << frame->type << ", body_length: " << frame->body_length;
+                if (frame->type == kMemTypeTradeOrderRep) {
+                    const auto* msg = reinterpret_cast<const MemTradeOrderMessage*>(data + sizeof(MemFrameHeader));
+                    LOG_INFO << ToString(msg);
+                    for (int i = 0; i < msg->items_size; ++i) {
+                        LOG_INFO << ToString(&msg->items[i]);
+                    }
+                }
+            });
+            fragment_handler_t repHandler = repAssembler.handler();
+            while (true) {
+                rep_subscription->poll(repHandler, 10);
+            }
+        });
+        rep_thread.detach();
 
         string usage("\nTYPE  'q' to quit program\n");
         usage += "      '1' to order_sh\n";

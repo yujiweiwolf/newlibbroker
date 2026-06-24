@@ -27,7 +27,7 @@ class TestBroker {
     void OnQueryTradePosition(MemQueryMessage* req);
     void OnQueryTradeKnock(MemQueryMessage* req);
     void SendTradeOrder(MemTradeOrderMessage* msg);
-    void OnTradeWithdraw(MemTradeWithdrawMessage* msg);
+    void SendTradeWithdraw(MemTradeWithdrawMessage* msg);
 
  private:
     void HandReqData();

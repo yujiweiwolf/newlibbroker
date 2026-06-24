@@ -51,3 +51,7 @@ target_link_libraries(send_req
 aux_source_directory (./src/crtp SRC_CRTP)
 add_executable(crtp src/crtp/main.cc src/crtp/mem_base_broker.cc src/crtp/imitate_broker.cc)
 target_link_libraries(crtp coral x stdc++fs yaml-cpp boost_date_time boost_filesystem boost_regex boost_system  boost_chrono boost_log boost_program_options boost_thread boost_iostreams z protobuf protobuf-lite sodium ssl crypto iconv pthread dl)
+
+
+add_executable(test_flow_control ./src/gtest/test_flow_control.cc)
+target_link_libraries(test_flow_control membroker gtest gtest_main coral x stdc++fs yaml-cpp boost_date_time boost_filesystem boost_regex boost_system  boost_chrono boost_log boost_program_options boost_thread boost_iostreams boost_context boost_coroutine z protobuf protobuf-lite sodium ssl crypto iconv pthread dl)
