@@ -15,9 +15,10 @@ broker:
   cpu_affinity: 5
   node_name: 华泰金桥机房浩睿股票交易Broker
   # 一台服务器上， 不管多少个broker, 共用这两块内存, 默认位置 /dev/shm/
-  mem_dir:
-  mem_req_file: broker_req
-  mem_rep_file: broker_rep
+  mem_dir: /dev/shm/
+  aeron_channel: aeron:ipc
+  req_stream_id: 1001
+  rep_stream_id: 1002
 
 
 fake:

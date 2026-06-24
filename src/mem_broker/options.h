@@ -143,6 +143,15 @@ class MemBrokerOptions {
     inline std::string mem_rep_file() const {
         return mem_rep_file_;
     }
+    inline int64_t req_stream_id() const {
+        return req_stream_id_;
+    }
+    inline int64_t rep_stream_id() const {
+        return rep_stream_id_;
+    }
+    inline std::string aeron_channel() const {
+        return aeron_channel_;
+    }
 
  private:
     std::shared_ptr<x::LoggingOptions> log_opt_;
@@ -168,6 +177,9 @@ class MemBrokerOptions {
     string mem_dir_;
     string mem_req_file_;
     string mem_rep_file_;
+    int64_t req_stream_id_ = 0;  // iceoryx2 请求流 ID
+    int64_t rep_stream_id_ = 0;  // iceoryx2 应答流 ID
+    string aeron_channel_;       // aeron channel 配置
 };
     typedef std::shared_ptr<MemBrokerOptions> MemBrokerOptionsPtr;
 }  // namespace co

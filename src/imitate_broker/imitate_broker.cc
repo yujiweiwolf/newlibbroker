@@ -41,7 +41,8 @@ void TestBroker::SendTradeOrder(MemTradeOrderMessage* req) {
     server_->OnRspTradeOrder(req);
 }
 
-void TestBroker::OnTradeWithdraw(MemTradeWithdrawMessage* msg) {
-
+void TestBroker::SendTradeeWithdraw(MemTradeWithdrawMessage* req) {
+    LOG_INFO << ToString(req);
+    server_->OnRspTradeWithdraw(req);
 }
 }  // namespace co

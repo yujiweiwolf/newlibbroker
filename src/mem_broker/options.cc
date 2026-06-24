@@ -25,7 +25,7 @@ std::shared_ptr<MemBrokerOptions> MemBrokerOptions::Load(const std::string& file
         try {
             return node[name] && !node[name].IsNull() ? node[name].as<std::string>() : "";
         } catch (std::exception& e) {
-            LOG_ERROR << "load configuration failed: name = " << name << ", error = " << e.what();
+            LOG_ERROR << "load configuration failed: name：" << name << ", error：" << e.what();
             throw std::runtime_error(e.what());
         }
     };
@@ -40,7 +40,7 @@ std::shared_ptr<MemBrokerOptions> MemBrokerOptions::Load(const std::string& file
                 }
             }
         } catch (std::exception& e) {
-            LOG_ERROR << "load configuration failed: name = " << name << ", error = " << e.what();
+            LOG_ERROR << "load configuration failed: name：" << name << ", error：" << e.what();
             throw std::runtime_error(e.what());
         }
     };
@@ -48,7 +48,7 @@ std::shared_ptr<MemBrokerOptions> MemBrokerOptions::Load(const std::string& file
         try {
             return node[name] && !node[name].IsNull() ? node[name].as<int64_t>() : default_value;
         } catch (std::exception& e) {
-            LOG_ERROR << "load configuration failed: name = " << name << ", error = " << e.what();
+            LOG_ERROR << "load configuration failed: name：" << name << ", error：" << e.what();
             throw std::runtime_error(e.what());
         }
     };
@@ -56,7 +56,7 @@ std::shared_ptr<MemBrokerOptions> MemBrokerOptions::Load(const std::string& file
         try {
             return node[name] && !node[name].IsNull() ? node[name].as<bool>() : false;
         } catch (std::exception& e) {
-            LOG_ERROR << "load configuration failed: name = " << name << ", error = " << e.what();
+            LOG_ERROR << "load configuration failed: name：" << name << ", error：" << e.what();
             throw std::runtime_error(e.what());
         }
     };
@@ -85,6 +85,9 @@ std::shared_ptr<MemBrokerOptions> MemBrokerOptions::Load(const std::string& file
     opt->mem_dir_ = getStr(broker, "mem_dir");
     opt->mem_req_file_ = getStr(broker, "mem_req_file");
     opt->mem_rep_file_ = getStr(broker, "mem_rep_file");
+    opt->req_stream_id_ = getInt(broker, "req_stream_id");
+    opt->rep_stream_id_ = getInt(broker, "rep_stream_id");
+    opt->aeron_channel_ = getStr(broker, "aeron_channel");
     return opt;
 }
 
@@ -115,6 +118,9 @@ string MemBrokerOptions::ToString() {
        << "  mem_dir: " << mem_dir_ << std::endl
        << "  mem_req_file: " << mem_req_file_ << std::endl
        << "  mem_rep_file: " << mem_rep_file_ << std::endl
+       << "  req_stream_id: " << req_stream_id_ << std::endl
+       << "  rep_stream_id: " << rep_stream_id_ << std::endl
+       << "  aeron_channel: " << aeron_channel_ << std::endl
        << log_opt_->ToString();
     return ss.str();
 }

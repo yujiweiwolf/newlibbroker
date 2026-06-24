@@ -21,7 +21,7 @@ void Config::Init() {
         try {
             return node[name] && !node[name].IsNull() ? node[name].as<std::string>() : "";
         } catch (std::exception& e) {
-            LOG_ERROR << "load configuration failed: name = " << name << ", error = " << e.what();
+            LOG_ERROR << "load configuration failed: name：" << name << ", error：" << e.what();
             throw std::runtime_error(e.what());
         }
     };
@@ -36,7 +36,7 @@ void Config::Init() {
                 }
             }
         } catch (std::exception& e) {
-            LOG_ERROR << "load configuration failed: name = " << name << ", error = " << e.what();
+            LOG_ERROR << "load configuration failed: name：" << name << ", error：" << e.what();
             throw std::runtime_error(e.what());
         }
     };
@@ -44,7 +44,7 @@ void Config::Init() {
         try {
             return node[name] && !node[name].IsNull() ? node[name].as<bool>() : false;
         } catch (std::exception& e) {
-            LOG_ERROR << "load configuration failed: name = " << name << ", error = " << e.what();
+            LOG_ERROR << "load configuration failed: name：" << name << ", error：" << e.what();
             throw std::runtime_error(e.what());
         }
     };

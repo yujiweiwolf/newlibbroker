@@ -14,6 +14,11 @@ constexpr int kMemTypeInnerSignal = 6400007;
 constexpr int kMemTypeHeartBeat = 6400008;
 constexpr int kMemTypeMonitorRisk = 640000111;
 
+struct MemFrameHeader {
+    int64_t type = 0;
+    int64_t body_length = 0;
+};
+
 struct MemTradeAccount {
     char fund_id[kMemFundIdSize];
     int64_t timestamp = 0;
