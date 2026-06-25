@@ -6,6 +6,7 @@
 #include "Aeron.h"
 #include "FragmentAssembler.h"
 #include "mem_struct.h"
+#include "flow_control.h"
 using namespace aeron;
 const int64_t INNER_AERON_STREAM_ID = 2003;
 
@@ -62,6 +63,9 @@ class MemBrokerServer {
             std::this_thread::yield();
             inner_subscription_ = aeron->findSubscription(innerSubId);
         }
+
+        // 初始化流控队列
+        flow_control_queue_.Init(option);
     }
 
     void Start() {
@@ -80,6 +84,32 @@ class MemBrokerServer {
             while (req_subscription_->poll(fragHandler, 1) > 0) {}
             // 再读完所有内部流消息
             while (inner_subscription_->poll(fragHandler, 1) > 0) {}
+
+            // 从流控队列 Pop 并处理
+            char* msg = flow_control_queue_.Pop();
+            if (msg) {
+                auto* frame = reinterpret_cast<MemFrameHeader*>(msg);
+                int64_t type = frame->type;
+                char* body = msg + sizeof(MemFrameHeader);
+
+                switch (type) {
+                case kMemTypeTradeOrderReq: {
+                    auto* order_msg = reinterpret_cast<MemTradeOrderMessage*>(body);
+                    SendTradeOrder(order_msg);
+                    break;
+                }
+                case kMemTypeTradeWithdrawReq: {
+                    auto* withdraw_msg = reinterpret_cast<MemTradeWithdrawMessage*>(body);
+                    SendTradeWithdraw(withdraw_msg);
+                    break;
+                }
+                default:
+                    LOG_WARN << "flow_control Pop unknown type: " << type;
+                    break;
+                }
+
+                delete[] msg;
+            }
         }
     }
 
@@ -181,14 +211,26 @@ private:
             }
             case kMemTypeTradeOrderReq: {
                 // MemTradeOrderMessage 是变长结构（尾部 items[]），不能值拷贝，直接传 body 指针
-                auto* msg = reinterpret_cast<MemTradeOrderMessage*>(data + kFrameHeaderSize);
-                SendTradeOrder(msg);
+                // auto* msg = reinterpret_cast<MemTradeOrderMessage*>(data + kFrameHeaderSize);
+                // SendTradeOrder(msg);
+                {
+                    size_t total_len = static_cast<size_t>(kFrameHeaderSize + body_length);
+                    auto* buf = new char[total_len];
+                    memcpy(buf, data, total_len);
+                    flow_control_queue_.Push(buf);
+                }                
                 break;
             }
             case kMemTypeTradeWithdrawReq: {
-                const auto* msg = reinterpret_cast<const MemTradeWithdrawMessage*>(body);
-                MemTradeWithdrawMessage req = *msg;
-                SendTradeWithdraw(&req);
+                // const auto* msg = reinterpret_cast<const MemTradeWithdrawMessage*>(body);
+                // MemTradeWithdrawMessage req = *msg;
+                // SendTradeWithdraw(&req);
+                {
+                    size_t total_len = static_cast<size_t>(kFrameHeaderSize + body_length);
+                    auto* buf = new char[total_len];
+                    memcpy(buf, data, total_len);
+                    flow_control_queue_.Push(buf);
+                }                
                 break;
             }
             case kMemTypeTradeOrderRep: {
@@ -217,5 +259,6 @@ private:
     std::shared_ptr<Publication> inner_publication_;
     std::shared_ptr<Subscription> inner_subscription_;
     std::shared_ptr<Publication> rep_publication_;
+    FlowControlQueue flow_control_queue_;
 };
 }  // namespace co
