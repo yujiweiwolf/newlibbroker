@@ -32,17 +32,17 @@ void TestBroker::OnQueryTradeKnock(MemQueryMessage* req) {
 }
 
 void TestBroker::SendTradeOrder(MemTradeOrderMessage* req) {
-    LOG_INFO << ToString(req);
-    for (int i = 0; i < req->items_size; ++i) {
-        auto& order = req->items[i];
-        sprintf(order.order_no, "1_MDBC%d", i);
-        LOG_INFO << ToString(&order);
-    }
-    server_->OnRspTradeOrder(req);
+//    LOG_INFO << ToString(req);
+//    for (int i = 0; i < req->items_size; ++i) {
+//        auto& order = req->items[i];
+//        sprintf(order.order_no, "1_MDBC%d", i);
+//        LOG_INFO << ToString(&order);
+//    }
+//    server_->OnRspTradeOrder(req);
 }
 
 void TestBroker::SendTradeWithdraw(MemTradeWithdrawMessage* req) {
-    LOG_INFO << ToString(req);
-    server_->OnRspTradeWithdraw(req);
+//    LOG_INFO << ToString(req);
+//    server_->OnRspTradeWithdraw(req);
 }
 }  // namespace co
