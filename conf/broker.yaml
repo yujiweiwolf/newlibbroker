@@ -10,7 +10,8 @@ broker:
     - { market: ".SZ", th_tps_limit: 55000, th_tps_queue_text_warning: 1, th_tps_queue_voice_warning: 500000, th_daily_warning: 17000000, th_daily_limit: 18000000 }
     - { market: ".BJ", th_tps_limit: 55000, th_tps_queue_text_warning: 1, th_tps_queue_voice_warning: 500000, th_daily_warning: 17000000, th_daily_limit: 18000000 }
   batch_order_size: 0
-  enable_stock_short_selling: false
+  # 1 现货, 2 期货, 3 期权, 4 信用
+  trade_type: 2
   idle_sleep_ns: 1000000
   cpu_affinity: 5
   node_name: 华泰金桥机房浩睿股票交易Broker
@@ -23,7 +24,6 @@ broker:
 
 fake:
   fund_id: "S1"
-  trade_type: "spot"
   name: "普通测试帐号"
 
 cffex:

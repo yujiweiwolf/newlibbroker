@@ -120,8 +120,8 @@ class MemBrokerOptions {
         return batch_order_size_;
     }
 
-    inline bool enable_stock_short_selling() const {
-        return enable_stock_short_selling_;
+    inline int trade_type() const {
+        return trade_type_;
     }
 
     inline bool enable_query_only() const {
@@ -172,7 +172,7 @@ class MemBrokerOptions {
     std::vector<std::unique_ptr<FlowControlConfig>> flow_controls_;
     int64_t batch_order_size_ = 1;  // 批量委托的篮子上限
 
-    bool enable_stock_short_selling_ = false;  // 启用股票账户融券模式
+    int trade_type_ = 0;
     bool enable_query_only_ = false;  // 是否启用只查询模式，不接收报单和撤单等指令
 
     int64_t query_asset_interval_ms_ = 0;  // 资金查询时间间隔

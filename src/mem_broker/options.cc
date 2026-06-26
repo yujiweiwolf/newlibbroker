@@ -74,7 +74,7 @@ std::shared_ptr<MemBrokerOptions> MemBrokerOptions::Load(const std::string& file
     }
     opt->disable_flow_control_ = getBool(broker, "disable_flow_control");
 
-    opt->enable_stock_short_selling_ = getBool(broker, "enable_stock_short_selling");
+    opt->trade_type_ = getInt(broker, "trade_type");
     opt->enable_query_only_ = getBool(broker, "enable_query_only");
     opt->query_asset_interval_ms_ = getInt(broker, "query_asset_interval_ms");
     opt->query_position_interval_ms_ = getInt(broker, "query_position_interval_ms");
@@ -113,7 +113,7 @@ string MemBrokerOptions::ToString() {
         }
     }
     ss << "  batch_order_size: " << batch_order_size_ << std::endl
-       << "  enable_stock_short_selling: " << std::boolalpha << enable_stock_short_selling_ << std::endl
+       << "  trade_type: " << std::boolalpha << trade_type_ << std::endl
        << "  idle_sleep_ns: " << idle_sleep_ns_ << "ns" << std::endl
        << "  cpu_affinity: " << cpu_affinity_ << std::endl
        << "  mem_dir: " << mem_dir_ << std::endl

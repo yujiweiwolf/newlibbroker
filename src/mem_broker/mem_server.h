@@ -8,6 +8,7 @@
 #include "mem_struct.h"
 #include "flow_control.h"
 #include "anti_self_knock_risker.h"
+#include "inner_future_master.h"
 using namespace aeron;
 const int64_t INNER_AERON_STREAM_ID = 2003;
 

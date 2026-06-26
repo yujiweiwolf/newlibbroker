@@ -177,11 +177,6 @@ void AntiSelfKnockRisk::HandleTradeOrderRep(MemTradeOrderMessage* rep) {
                     bit = batch_orders_.emplace(batch_no, std::make_unique<std::vector<InnerOrderPtr>>()).first;
                 }
                 bit->second->push_back(inner);
-//                LOG_INFO << "HandleTradeOrderRep, batch_no： " << batch_no
-//                         << ", order_no： " << order_no
-//                         << ", code： " << item.code
-//                         << ", bs_flag： " << item.bs_flag
-//                         << ", batch_orders_ size： " << bit->second->size();
             }
         }
     }
@@ -190,10 +185,6 @@ void AntiSelfKnockRisk::HandleTradeOrderRep(MemTradeOrderMessage* rep) {
             OnTradeKnock(&it);
         }
     }
-//    LOG_INFO << "HandleTradeOrderRep end, batch_orders_ count： " << batch_orders_.size();
-//    for (auto& [bn, orders] : batch_orders_) {
-//        LOG_INFO << "HandleTradeOrderRep end, batch_no： " << bn << ", alive orders： " << orders->size();
-//    }
 }
 
 std::string AntiSelfKnockRisk::HandleTradeWithdrawReq(MemTradeWithdrawMessage* req) {
@@ -272,5 +263,4 @@ void AntiSelfKnockRisk::OnTradeKnock(MemTradeKnock* knock) {
         }
     }    
 }
-
 }  // namespace co
