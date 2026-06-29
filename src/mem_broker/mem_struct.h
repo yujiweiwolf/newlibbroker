@@ -13,6 +13,7 @@ constexpr int kMemTypeQueryTradeKnockRep = 6400006;
 constexpr int kMemTypeInnerSignal = 6400007;
 constexpr int kMemTypeHeartBeat = 6400008;
 constexpr int kMemTypeMonitorRisk = 640000111;
+constexpr int kMemTypeTradeKnockRep = 6400009;
 
 struct MemFrameHeader {
     int64_t type = 0;
@@ -36,7 +37,7 @@ struct MemQueryMessage {
 };
 
 struct MemOnRspQueryPosition {
-    char id[kMemIdSize];  // INIT_ 开头的字段
+    char id[kMemIdSize];  // INIT 开头的字段
     bool last_flag;  // 最后一条
     MemTradePosition item;
 };

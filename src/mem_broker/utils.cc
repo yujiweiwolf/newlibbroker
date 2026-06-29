@@ -86,42 +86,47 @@ std::string CreateInnerMatchNo(const co::fbs::TradeKnockT& knock) {
 }
 
 std::string CheckTradeOrderMessage(MemTradeOrderMessage *req) {
-    if (req->bs_flag <= 0 || req->bs_flag >=4) {
+    if (req->bs_flag <= 0 || req->bs_flag >= 4) {
         return ("[FAN-BROKER-ERROR] not valid bs_flag: " + to_string(req->bs_flag));
     }
-//    auto order = &req->item;
-//    if (strlen(order->code) == 0) {
-//        return "[FAN-BROKER-ERROR] code is required";
-//    }
-//    int64_t market = order->market;
-//    if (market <= 0) {
-//        market = co::CodeToMarket(order->code);
-//        order->market = market;
-//    }
-//    if (market <= 0) {
-//        std::stringstream ss;
-//        return ("[FAN-BROKER-ERROR] unknown market suffix in code: " + string(order->code));
-//    }
-//    //只允许放一天的逆回购 204001.SH 131810.SZ
-//    if (req->bs_flag == co::kBsFlagSell) {
-//        if (market == kMarketSH) {
-//            if ((order->code[0] = '2') && (order->code[1] = '0') && (order->code[2] = '4')) {
-//                if ((order->code[3] = '0') && (order->code[4] = '0') && (order->code[5] = '1')) {
-//                    return "";
-//                } else {
-//                    return ("[FAN-Broker-RepoRiskError] only 1-Day repo code is allowed: " + string(order->code));
-//                }
-//            }
-//        } else if (market == kMarketSZ) {
-//            if ((order->code[0] = '1') && (order->code[1] = '3') && (order->code[2] = '1') && (order->code[3] = '8')) {
-//                if ((order->code[4] = '1') && (order->code[5] = '0')) {
-//                    return "";
-//                } else {
-//                    return ("[FAN-Broker-RepoRiskError] only 1-Day repo code is allowed: " + string(order->code));
-//                }
-//            }
-//        }
-//    }
+    if (req->items_size <= 0) {
+        return ("[FAN-BROKER-ERROR] not valid items_size: " + to_string(req->items_size));
+    }
+    for (int i = 0; i < req->items_size; ++i) {
+        auto order = &req->items[i];
+        if (strlen(order->code) == 0) {
+            return "[FAN-BROKER-ERROR] code is required";
+        }
+        int64_t market = order->market;
+        if (market <= 0) {
+            market = co::CodeToMarket(order->code);
+            order->market = market;
+        }
+        if (market <= 0) {
+            std::stringstream ss;
+            return ("[FAN-BROKER-ERROR] unknown market suffix in code: " + string(order->code));
+        }
+        //只允许放一天的逆回购 204001.SH 131810.SZ
+        if (req->bs_flag == co::kBsFlagSell) {
+            if (market == kMarketSH) {
+                if ((order->code[0] = '2') && (order->code[1] = '0') && (order->code[2] = '4')) {
+                    if ((order->code[3] = '0') && (order->code[4] = '0') && (order->code[5] = '1')) {
+                        return "";
+                    } else {
+                        return ("[FAN-Broker-RepoRiskError] only 1-Day repo code is allowed: " + string(order->code));
+                    }
+                }
+            } else if (market == kMarketSZ) {
+                if ((order->code[0] = '1') && (order->code[1] = '3') && (order->code[2] = '1') && (order->code[3] = '8')) {
+                    if ((order->code[4] = '1') && (order->code[5] = '0')) {
+                        return "";
+                    } else {
+                        return ("[FAN-Broker-RepoRiskError] only 1-Day repo code is allowed: " + string(order->code));
+                    }
+                }
+            }
+        }
+    }
     return "";
 }
 

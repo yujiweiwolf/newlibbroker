@@ -5,9 +5,12 @@
 #include "mem_struct.h"
 #include "options.h"
 
+// TradeTypeOption 交易类型：信用交易
+constexpr int kTradeTypeCredit = 4;
+
 namespace co {
-struct InnerFuturePosition {
-    InnerFuturePosition(std::string code, int64_t bs_flag) : code_(code) {
+struct InnerPosition {
+    InnerPosition(std::string code, int64_t bs_flag) : code_(code) {
         if (bs_flag == kBsFlagBuy) {
             tag_ = "多头持仓";
         } else {
@@ -52,12 +55,11 @@ struct InnerFuturePosition {
     int64_t td_opening_volume_ = 0;  // 今日持仓开仓冻结数, 只显示，没有作用
     int64_t td_open_volume_ = 0;     // 今日已开仓数
 };
-typedef std::shared_ptr<InnerFuturePosition> InnerFuturePositionPtr;
+typedef std::shared_ptr<InnerPosition> InnerPositionPtr;
 
-class InnerFutureMaster {
+class PositionMaster {
  public:
-    explicit InnerFutureMaster(int64_t trade_type);
-
+    explicit PositionMaster(int64_t trade_type);
     void InitPositions(MemTradePosition* position, bool last);
     void HandleOrderReq(MemTradeOrderMessage* req);
     void HandleOrderRep(MemTradeOrderMessage* rep);
@@ -65,20 +67,19 @@ class InnerFutureMaster {
 
     int64_t GetAutoOcFlag(int64_t bs_flag, const MemTradeOrder& order);
     int64_t GetCloseYesterdayFlag(int64_t bs_flag, const MemTradeOrder& order);
-    InnerFuturePositionPtr GetPosition(std::string code, int64_t bs_flag, int64_t oc_flag);
+    InnerPositionPtr GetPosition(std::string code, int64_t bs_flag, int64_t oc_flag);
 
  protected:
     void InitCffexParam();
-    void Update(InnerFuturePositionPtr pos, int64_t oc_flag, int64_t order_volume, int64_t match_volume, int64_t withdraw_volume);
+    void Update(InnerPositionPtr pos, int64_t oc_flag, int64_t order_volume, int64_t match_volume, int64_t withdraw_volume);
 
  private:
     int64_t trade_type_ = 0;  // 1 现货, 2 期货, 3 期权, 4 信用
-    std::map<std::string, std::shared_ptr<std::pair<InnerFuturePositionPtr, InnerFuturePositionPtr>>> positions_;  // <code> -> first is buy, second is sell
-    std::set<std::string> knocks_;  // <inner_match_no>
+    std::map<std::string, std::shared_ptr<std::pair<InnerPositionPtr, InnerPositionPtr>>> positions_;  // <code> -> first is buy, second is sell
 
     bool forbid_closing_today_ = false;  // 风控策略：禁止股指期货自动开平仓时平今仓
     int64_t max_today_opening_volume_ = 0;  // 风控策略：限制股指期货当日最大开仓数
     std::map<string, int64_t> open_cache_;  // 合约类型（IF、IH、IC） -> 已开仓数 + 开仓冻结数，用于限制当日最大开仓数
 };
-typedef std::shared_ptr<InnerFutureMaster> InnerFutureMasterPtr;
+typedef std::shared_ptr<PositionMaster> InnerFutureMasterPtr;
 }  // namespace co

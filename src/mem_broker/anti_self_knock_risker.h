@@ -102,7 +102,7 @@ class AntiSelfKnockRisk {
     // 撤单响应处理
     void HandleTradeWithdrawRep(MemTradeWithdrawMessage* rep);
     // 成交回报处理
-    void OnTradeKnock(MemTradeKnock* knock);
+    void HandleTradeKnock(MemTradeKnock* knock);
 
  private:
     std::shared_ptr<OrderBook> MustGetOrderBook(const std::string& code);

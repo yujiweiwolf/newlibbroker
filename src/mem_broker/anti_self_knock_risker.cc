@@ -182,7 +182,7 @@ void AntiSelfKnockRisk::HandleTradeOrderRep(MemTradeOrderMessage* rep) {
     }
     if (knocks) {
         for (auto& it : *knocks) {
-            OnTradeKnock(&it);
+            HandleTradeKnock(&it);
         }
     }
 }
@@ -219,7 +219,7 @@ void AntiSelfKnockRisk::HandleTradeWithdrawRep(MemTradeWithdrawMessage* rep) {
     }
 }
 
-void AntiSelfKnockRisk::OnTradeKnock(MemTradeKnock* knock) {
+void AntiSelfKnockRisk::HandleTradeKnock(MemTradeKnock* knock) {
     std::string order_no = knock->order_no;
     auto it = single_orders_.find(order_no);
     if (it == single_orders_.end()) {
