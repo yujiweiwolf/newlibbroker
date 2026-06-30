@@ -78,6 +78,7 @@ class FlowControlQueue {
     char* Pop();
 
  private:
+    std::shared_ptr<FlowControlMarketQueue> GetMarketQueue(int64_t market);
     int64_t idle_sleep_ns_ = 0;
     // kMarketSH=1 kMarketSZ=2 kMarketBJ=3，数组下标对应 market 值
     static constexpr int kMarketQueueSize = 4;

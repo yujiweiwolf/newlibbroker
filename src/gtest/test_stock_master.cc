@@ -49,7 +49,7 @@ TEST_F(CreditPositionTest, GetPositionBuyReturnsNull) {
     EXPECT_EQ(pos, nullptr);
 }
 
-// 测试场景：HandleOrderReq 卖单委托，冻结数量
+// 测试场景：HandleTradeOrderReq 卖单委托，冻结数量
 TEST_F(CreditPositionTest, OrderReqSell) {
     AddInitPosition("600000.SH", 5000);
 
@@ -68,7 +68,7 @@ TEST_F(CreditPositionTest, OrderReqSell) {
     msg->items[0].oc_flag = master_->GetAutoOcFlag(msg->bs_flag, msg->items[0]);
     EXPECT_EQ(msg->items[0].oc_flag, kOcFlagAuto);
 
-    master_->HandleOrderReq(msg);
+        master_->HandleTradeOrderReq(msg);
 
     auto pos = master_->GetPosition("600000.SH", kBsFlagSell, kOcFlagAuto);
     ASSERT_NE(pos, nullptr);
@@ -92,7 +92,7 @@ TEST_F(CreditPositionTest, OrderReqSell) {
     msg2->items[0].timestamp = x::UnixMilli();
     msg2->items[0].oc_flag = master_->GetAutoOcFlag(msg2->bs_flag, msg2->items[0]);
     EXPECT_EQ(msg2->items[0].oc_flag, kOcFlagOpen);
-    master_->HandleOrderReq(msg2);
+        master_->HandleTradeOrderReq(msg2);
 
     auto pos2 = master_->GetPosition("600000.SH", kBsFlagSell, msg2->items[0].oc_flag);
     ASSERT_EQ(pos2, nullptr);
@@ -101,7 +101,7 @@ TEST_F(CreditPositionTest, OrderReqSell) {
     free(msg);
 }
 
-// 测试场景：HandleOrderRep 卖单失败，解冻数量
+// 测试场景：HandleTradeOrderRep 卖单失败，解冻数量
 TEST_F(CreditPositionTest, OrderRepFailSell) {
     AddInitPosition("600000.SH", 5000);
 
@@ -121,7 +121,7 @@ TEST_F(CreditPositionTest, OrderRepFailSell) {
     EXPECT_EQ(msg->items[0].oc_flag, kOcFlagAuto);
 
     // 先发委托
-    master_->HandleOrderReq(msg);
+        master_->HandleTradeOrderReq(msg);
 
     auto pos = master_->GetPosition("600000.SH", kBsFlagSell, kOcFlagAuto);
     ASSERT_NE(pos, nullptr);
@@ -130,7 +130,7 @@ TEST_F(CreditPositionTest, OrderRepFailSell) {
     // 废单响应（order_no 为空）
     strncpy(msg->id, x::UUID().c_str(), kMemIdSize - 1);
     // order_no 默认空字符串
-    master_->HandleOrderRep(msg);
+    master_->HandleTradeOrderRep(msg);
 
     // 解冻
     EXPECT_EQ(pos->yd_closing_volume_, 0);
@@ -138,7 +138,7 @@ TEST_F(CreditPositionTest, OrderRepFailSell) {
     free(msg);
 }
 
-// 测试场景：HandleKnock 卖单成交
+// 测试场景：HandleTradeKnock 卖单成交
 TEST_F(CreditPositionTest, KnockSellMatch) {
     AddInitPosition("600000.SH", 5000);
 
@@ -155,7 +155,7 @@ TEST_F(CreditPositionTest, KnockSellMatch) {
     msg->items[0].volume = 1000;
     msg->items[0].price = 9.98;
     msg->items[0].timestamp = x::UnixMilli();
-    master_->HandleOrderReq(msg);
+        master_->HandleTradeOrderReq(msg);
 
     // 成交回报
     MemTradeKnock knock;
@@ -169,7 +169,7 @@ TEST_F(CreditPositionTest, KnockSellMatch) {
     knock.match_type = kMatchTypeOK;
     knock.match_volume = 1000;
     knock.timestamp = x::UnixMilli();
-    master_->HandleKnock(knock);
+    master_->HandleTradeKnock(knock);
 
     auto pos = master_->GetPosition("600000.SH", kBsFlagSell, kOcFlagAuto);
     ASSERT_NE(pos, nullptr);
@@ -200,7 +200,7 @@ TEST_F(CreditPositionTest, MultipleSellsPartialMatch) {
     msg1->items[0].timestamp = x::UnixMilli();
     msg1->items[0].oc_flag = master_->GetAutoOcFlag(msg1->bs_flag, msg1->items[0]);
     EXPECT_EQ(msg1->items[0].oc_flag, kOcFlagAuto);
-    master_->HandleOrderReq(msg1);
+        master_->HandleTradeOrderReq(msg1);
 
     auto pos = master_->GetPosition("600000.SH", kBsFlagSell, kOcFlagAuto);
     ASSERT_NE(pos, nullptr);
@@ -218,7 +218,7 @@ TEST_F(CreditPositionTest, MultipleSellsPartialMatch) {
     knock1.match_type = kMatchTypeOK;
     knock1.match_volume = 800;
     knock1.timestamp = x::UnixMilli();
-    master_->HandleKnock(knock1);
+    master_->HandleTradeKnock(knock1);
 
     EXPECT_EQ(pos->yd_closing_volume_, 1200);
     EXPECT_EQ(pos->yd_close_volume_, 800);
@@ -235,7 +235,7 @@ TEST_F(CreditPositionTest, MultipleSellsPartialMatch) {
     knock2.match_type = kMatchTypeOK;
     knock2.match_volume = 1200;
     knock2.timestamp = x::UnixMilli();
-    master_->HandleKnock(knock2);
+    master_->HandleTradeKnock(knock2);
 
     EXPECT_EQ(pos->yd_closing_volume_, 0);
     EXPECT_EQ(pos->yd_close_volume_, 2000);

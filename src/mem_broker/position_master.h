@@ -61,9 +61,9 @@ class PositionMaster {
  public:
     explicit PositionMaster(int64_t trade_type);
     void InitPositions(MemTradePosition* position, bool last);
-    void HandleOrderReq(MemTradeOrderMessage* req);
-    void HandleOrderRep(MemTradeOrderMessage* rep);
-    void HandleKnock(const MemTradeKnock& knock);
+    void HandleTradeOrderReq(MemTradeOrderMessage* req);
+    void HandleTradeOrderRep(MemTradeOrderMessage* rep);
+    void HandleTradeKnock(const MemTradeKnock& knock);
 
     int64_t GetAutoOcFlag(int64_t bs_flag, const MemTradeOrder& order);
     int64_t GetCloseYesterdayFlag(int64_t bs_flag, const MemTradeOrder& order);

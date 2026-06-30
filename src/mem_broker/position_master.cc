@@ -88,7 +88,7 @@ void PositionMaster::InitPositions(MemTradePosition* position, bool last) {
     }
 }
 
-void PositionMaster::HandleOrderReq(MemTradeOrderMessage* req) {
+void PositionMaster::HandleTradeOrderReq(MemTradeOrderMessage* req) {
     int64_t bs_flag = req->bs_flag;
     const MemTradeOrder& order = req->items[0];
     std::string code = order.code;
@@ -106,7 +106,7 @@ void PositionMaster::HandleOrderReq(MemTradeOrderMessage* req) {
     }
 }
 
-void PositionMaster::HandleOrderRep(MemTradeOrderMessage* req) {
+void PositionMaster::HandleTradeOrderRep(MemTradeOrderMessage* req) {
     int64_t bs_flag = req->bs_flag;
     const MemTradeOrder& order = req->items[0];
     // 处理委托废单响应，解冻数量
@@ -134,7 +134,7 @@ void PositionMaster::HandleOrderRep(MemTradeOrderMessage* req) {
     }
 }
 
-void PositionMaster::HandleKnock(const MemTradeKnock& knock) {
+void PositionMaster::HandleTradeKnock(const MemTradeKnock& knock) {
     int64_t bs_flag = knock.bs_flag;
     int64_t oc_flag = knock.oc_flag;
     if (bs_flag != kBsFlagBuy && bs_flag != kBsFlagSell) {

@@ -130,40 +130,29 @@ std::string CheckTradeOrderMessage(MemTradeOrderMessage *req) {
     return "";
 }
 
-std::string CheckTradeWithdrawMessage(MemTradeWithdrawMessage *req, int64_t trade_type) {
-    if (strlen(req->order_no) == 0) {
+std::string CheckTradeWithdrawMessage(MemTradeWithdrawMessage *req) {
+    if (strlen(req->order_no) == 0 && strlen(req->batch_no) == 0) {
         return ("[FAN-BROKER-ERROR] order_no and batch_no both empty");
     }
-    if (trade_type == kTradeTypeSpot) {
-        if (strlen(req->order_no)) {
-            if (req->market == 0) {
-                if (req->order_no[0] == '1') {
-                    req->market = co::kMarketSH;
-                } else if (req->order_no[0] == '2') {
-                    req->market = co::kMarketSZ;
-                }
-            }
-            bool flag = true;
-            if (req->order_no[1] == '-') {
-                if ((req->order_no[0] < '1' || req->order_no[0] > '9')) {
-                    flag = false;
-                }
-            } else {
-                if (req->order_no[2] != '-') {
-                    flag = false;
-                } else {
-                    if ((req->order_no[0] < '1' || req->order_no[0] > '9')) {
-                        flag = false;
-                    }
-                    if ((req->order_no[1] < '1' || req->order_no[2] > '9')) {
-                        flag = false;
-                    }
-                }
-            }
-            if (flag == false) {
-                return ("[FAN-BROKER-ERROR] not valid order_no: " + string(req->order_no));
-            }
+    if (strlen(req->order_no)) {
+        string order_no = req->order_no;
+        if (auto it = order_no.find("_"); it == string::npos) {
+            return ("[FAN-BROKER-ERROR] not valid order_no: " + order_no);
+        } else {
+            req->market = co::atoi(order_no.substr(0, it).c_str());
         }
+    } else if (strlen(req->batch_no)) {
+        string batch_no = req->batch_no;
+        // batch_no 格式: 1_400_4324242 (market_ordersize_seq)
+        auto first = batch_no.find('_');
+        if (first == string::npos) {
+            return ("[FAN-BROKER-ERROR] not valid batch_no format(no '_'): " + batch_no);
+        }
+        auto second = batch_no.find('_', first + 1);
+        if (second == string::npos) {
+            return ("[FAN-BROKER-ERROR] not valid batch_no format(only one '_'): " + batch_no);
+        }
+        req->market = co::atoi(batch_no.substr(0, first).c_str());
     }
     return "";
 }

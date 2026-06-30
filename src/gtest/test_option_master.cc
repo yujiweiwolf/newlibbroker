@@ -41,7 +41,7 @@ TEST_F(OptionPositionTest, InitPosition) {
     EXPECT_EQ(short_pos->yd_init_volume_, 0);
 }
 
-// 测试场景：HandleOrderReq 开仓委托
+// 测试场景：HandleTradeOrderReq 开仓委托
 TEST_F(OptionPositionTest, OrderReqOpen) {
     AddInitPosition("10003984.SH", 3000, 2000);
 
@@ -60,7 +60,7 @@ TEST_F(OptionPositionTest, OrderReqOpen) {
     msg->items[0].oc_flag = master_->GetAutoOcFlag(msg->bs_flag, msg->items[0]);
     EXPECT_EQ(msg->items[0].oc_flag, kOcFlagOpen);
 
-    master_->HandleOrderReq(msg);
+        master_->HandleTradeOrderReq(msg);
 
     auto pos = master_->GetPosition("10003984.SH", kBsFlagBuy, kOcFlagOpen);
     ASSERT_NE(pos, nullptr);
@@ -72,7 +72,7 @@ TEST_F(OptionPositionTest, OrderReqOpen) {
     free(msg);
 }
 
-// 测试场景：HandleOrderReq 平仓委托（有足够持仓）
+// 测试场景：HandleTradeOrderReq 平仓委托（有足够持仓）
 TEST_F(OptionPositionTest, OrderReqClose) {
     AddInitPosition("10003984.SH", 3000, 2000);
 
@@ -91,7 +91,7 @@ TEST_F(OptionPositionTest, OrderReqClose) {
     msg->items[0].oc_flag = master_->GetAutoOcFlag(msg->bs_flag, msg->items[0]);
     EXPECT_EQ(msg->items[0].oc_flag, kOcFlagClose);
 
-    master_->HandleOrderReq(msg);
+        master_->HandleTradeOrderReq(msg);
 
     auto pos = master_->GetPosition("10003984.SH", msg->bs_flag, msg->items[0].oc_flag);
     ASSERT_NE(pos, nullptr);
@@ -102,7 +102,7 @@ TEST_F(OptionPositionTest, OrderReqClose) {
     free(msg);
 }
 
-// 测试场景：HandleOrderRep 废单（解冻）
+// 测试场景：HandleTradeOrderRep 废单（解冻）
 TEST_F(OptionPositionTest, OrderRepFail) {
     AddInitPosition("10003984.SH", 3000, 2000);
 
@@ -122,7 +122,7 @@ TEST_F(OptionPositionTest, OrderRepFail) {
     msg->items[0].oc_flag = master_->GetAutoOcFlag(msg->bs_flag, msg->items[0]);
     EXPECT_EQ(msg->items[0].oc_flag, kOcFlagClose);
 
-    master_->HandleOrderReq(msg);
+        master_->HandleTradeOrderReq(msg);
 
     auto pos = master_->GetPosition("10003984.SH", kBsFlagSell, kOcFlagClose);
     ASSERT_NE(pos, nullptr);
@@ -130,14 +130,14 @@ TEST_F(OptionPositionTest, OrderRepFail) {
 
     // 废单响应
     strncpy(msg->id, x::UUID().c_str(), kMemIdSize - 1);
-    master_->HandleOrderRep(msg);
+    master_->HandleTradeOrderRep(msg);
 
     EXPECT_EQ(pos->td_closing_volume_, 0);
 
     free(msg);
 }
 
-// 测试场景：HandleKnock 开仓成交
+// 测试场景：HandleTradeKnock 开仓成交
 TEST_F(OptionPositionTest, KnockOpenMatch) {
     AddInitPosition("10003984.SH", 3000, 2000);
 
@@ -157,7 +157,7 @@ TEST_F(OptionPositionTest, KnockOpenMatch) {
     msg->items[0].oc_flag = master_->GetAutoOcFlag(msg->bs_flag, msg->items[0]);
     EXPECT_EQ(msg->items[0].oc_flag, kOcFlagOpen);
 
-    master_->HandleOrderReq(msg);
+        master_->HandleTradeOrderReq(msg);
 
     // 成交
     MemTradeKnock knock;
@@ -171,7 +171,7 @@ TEST_F(OptionPositionTest, KnockOpenMatch) {
     knock.match_type = kMatchTypeOK;
     knock.match_volume = 5000;
     knock.timestamp = x::UnixMilli();
-    master_->HandleKnock(knock);
+    master_->HandleTradeKnock(knock);
 
     auto pos = master_->GetPosition("10003984.SH", kBsFlagBuy, kOcFlagOpen);
     ASSERT_NE(pos, nullptr);
@@ -181,7 +181,7 @@ TEST_F(OptionPositionTest, KnockOpenMatch) {
     free(msg);
 }
 
-// 测试场景：HandleKnock 平仓成交
+// 测试场景：HandleTradeKnock 平仓成交
 TEST_F(OptionPositionTest, KnockCloseMatch) {
     AddInitPosition("10003984.SH", 3000, 2000);
 
@@ -201,7 +201,7 @@ TEST_F(OptionPositionTest, KnockCloseMatch) {
     msg->items[0].oc_flag = master_->GetAutoOcFlag(msg->bs_flag, msg->items[0]);
     EXPECT_EQ(msg->items[0].oc_flag, kOcFlagClose);
 
-    master_->HandleOrderReq(msg);
+        master_->HandleTradeOrderReq(msg);
 
     // 成交
     MemTradeKnock knock;
@@ -215,7 +215,7 @@ TEST_F(OptionPositionTest, KnockCloseMatch) {
     knock.match_type = kMatchTypeOK;
     knock.match_volume = 1000;
     knock.timestamp = x::UnixMilli();
-    master_->HandleKnock(knock);
+    master_->HandleTradeKnock(knock);
 
     auto pos = master_->GetPosition("10003984.SH", kBsFlagSell, kOcFlagClose);
     ASSERT_NE(pos, nullptr);
@@ -244,7 +244,7 @@ TEST_F(OptionPositionTest, PartialMatch) {
     msg->items[0].timestamp = x::UnixMilli();
     msg->items[0].oc_flag = master_->GetAutoOcFlag(msg->bs_flag, msg->items[0]);
     EXPECT_EQ(msg->items[0].oc_flag, kOcFlagClose);
-    master_->HandleOrderReq(msg);
+        master_->HandleTradeOrderReq(msg);
 
     auto pos = master_->GetPosition("10003984.SH", msg->bs_flag, msg->items[0].oc_flag);
     ASSERT_NE(pos, nullptr);
@@ -262,7 +262,7 @@ TEST_F(OptionPositionTest, PartialMatch) {
     knock1.match_type = kMatchTypeOK;
     knock1.match_volume = 300;
     knock1.timestamp = x::UnixMilli();
-    master_->HandleKnock(knock1);
+    master_->HandleTradeKnock(knock1);
 
     EXPECT_EQ(pos->td_closing_volume_, 700);
     EXPECT_EQ(pos->td_close_volume_, 300);
@@ -279,7 +279,7 @@ TEST_F(OptionPositionTest, PartialMatch) {
     knock2.match_type = kMatchTypeOK;
     knock2.match_volume = 700;
     knock2.timestamp = x::UnixMilli();
-    master_->HandleKnock(knock2);
+    master_->HandleTradeKnock(knock2);
 
     EXPECT_EQ(pos->td_closing_volume_, 0);
     EXPECT_EQ(pos->td_close_volume_, 1000);

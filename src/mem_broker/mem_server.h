@@ -9,6 +9,7 @@
 #include "flow_control.h"
 #include "anti_self_knock_risker.h"
 #include "position_master.h"
+#include "utils.h"
 #include <cstdint>
 using namespace aeron;
 const int64_t INNER_AERON_STREAM_ID = 2003;
@@ -26,15 +27,15 @@ class MemBrokerServer {
     void Run();
 
     // 具体的broker需要实现的函数
-    void SendQueryTradeAsset(MemQueryMessage* msg);
+    void SendQueryAssetReq(MemQueryMessage* msg);
 
-    void SendQueryTradePosition(MemQueryMessage* msg);
+    void SendQueryPositionReq(MemQueryMessage* msg);
 
-    void SendQueryTradeKnock(MemQueryMessage* msg);
+    void SendQueryKnockReq(MemQueryMessage* msg);
 
-    void SendTradeOrder(MemTradeOrderMessage* msg);
+    void SendTradeOrderReq(MemTradeOrderMessage* msg);
 
-    void SendTradeWithdraw(MemTradeWithdrawMessage* msg);
+    void SendTradeWithdrawReq(MemTradeWithdrawMessage* msg);
 
     // 具体的broker,得到柜台的数据后直接调用
     void OnRspQryAsset(MemTradeAsset* asset);
@@ -49,15 +50,15 @@ class MemBrokerServer {
     void HandleMessage(const AtomicBuffer& buffer, util::index_t offset, util::index_t length, const Header& header);
 
     // 从inner_publication中读到信息的处理函数
-    void HandleRspQryAsset(MemTradeAsset* asset);
-    void HandleRspQryPosition(MemOnRspQueryPosition* pos);
-    void HandleRspQryKnock(MemTradeKnock* knock);
-    void HandleTradeOrder(MemTradeOrderMessage* msg);
-    void HandleRspTradeWithdraw(MemTradeWithdrawMessage* msg);
+    void HandleQueryAssetRep(MemTradeAsset* asset);
+    void HandleQueryPositionRep(MemOnRspQueryPosition* pos);
+    void HandleQueryKnockRep(MemTradeKnock* knock);
+    void HandleTradeOrderRep(MemTradeOrderMessage* msg);
+    void HandleTradeWithdrawRep(MemTradeWithdrawMessage* msg);
     void HandleTradeKnock(MemTradeKnock* msg);
 
-    void WriteRepPublicTradeOrder(MemTradeOrderMessage* msg);
-    void WriteRepPublicWithdraw(MemTradeWithdrawMessage* msg);
+    template <typename T>
+    void WriteRepPublic(T* msg, int64_t frame_type, size_t body_size);
 private:
     MemBrokerOptionsPtr opt_;
     Broker broker_;
@@ -68,6 +69,7 @@ private:
     FlowControlQueue flow_control_queue_;
     AntiSelfKnockRisk risk_;
     std::unique_ptr<PositionMaster> pos_master_;
+    std::set<std::string> all_message_;
 };
 
 // ============================================================
@@ -152,12 +154,12 @@ void MemBrokerServer<Broker>::Run() {
             switch (type) {
             case kMemTypeTradeOrderReq: {
                 auto* order_msg = reinterpret_cast<MemTradeOrderMessage*>(body);
-                SendTradeOrder(order_msg);
+                SendTradeOrderReq(order_msg);
                 break;
             }
             case kMemTypeTradeWithdrawReq: {
                 auto* withdraw_msg = reinterpret_cast<MemTradeWithdrawMessage*>(body);
-                SendTradeWithdraw(withdraw_msg);
+                SendTradeWithdrawReq(withdraw_msg);
                 break;
             }
             default:
@@ -194,33 +196,64 @@ void MemBrokerServer<Broker>::HandleMessage(const AtomicBuffer& buffer, util::in
         case kMemTypeQueryTradeAssetReq: {
             const auto* msg = reinterpret_cast<const MemQueryMessage*>(body);
             MemQueryMessage req = *msg;
-            SendQueryTradeAsset(&req);
+            SendQueryAssetReq(&req);
             break;
         }
         case kMemTypeQueryTradePositionReq: {
             const auto* msg = reinterpret_cast<const MemQueryMessage*>(body);
             MemQueryMessage req = *msg;
-            SendQueryTradePosition(&req);
+            SendQueryPositionReq(&req);
             break;
         }
         case kMemTypeQueryTradeKnockReq: {
             const auto* msg = reinterpret_cast<const MemQueryMessage*>(body);
             MemQueryMessage req = *msg;
-            SendQueryTradeKnock(&req);
+            SendQueryKnockReq(&req);
             break;
         }
         case kMemTypeTradeOrderReq: {
-            size_t total_len = static_cast<size_t>(kFrameHeaderSize + body_length);
-            auto* buf = new char[total_len];
-            memcpy(buf, data, total_len);
-            flow_control_queue_.Push(buf);
+            const auto* msg = reinterpret_cast<const MemTradeOrderMessage*>(body);
+            auto it = all_message_.find(msg->id);
+            if (it == all_message_.end() && !opt_->enable_query_only()) {
+                all_message_.insert(msg->id);
+                size_t total_len = static_cast<size_t>(kFrameHeaderSize + body_length);
+                auto* buf = new char[total_len];
+                memcpy(buf, data, total_len);
+                MemTradeOrderMessage* order_msg = reinterpret_cast<MemTradeOrderMessage*>(buf);
+                std::string error = CheckTradeOrderMessage(order_msg);
+                if (!error.empty()) {
+                    strncpy(order_msg->error, error.c_str(), kMemErrorSize - 1);
+                    WriteRepPublic(order_msg, kMemTypeTradeOrderRep, sizeof(MemTradeOrderMessage));
+                    delete [] buf;
+                } else {
+                    flow_control_queue_.Push(buf);
+                }
+            }
             break;
         }
         case kMemTypeTradeWithdrawReq: {
-            size_t total_len = static_cast<size_t>(kFrameHeaderSize + body_length);
-            auto* buf = new char[total_len];
-            memcpy(buf, data, total_len);
-            flow_control_queue_.Push(buf);
+            auto* msg = reinterpret_cast<const MemTradeWithdrawMessage*>(body);
+            auto it = all_message_.find(msg->id);
+            if (it == all_message_.end() && !opt_->enable_query_only()) {
+                all_message_.insert(msg->id);
+                size_t total_len = static_cast<size_t>(kFrameHeaderSize + body_length);
+                auto *buf = new char[total_len];
+                memcpy(buf, data, total_len);
+                MemTradeWithdrawMessage* withdraw_msg = reinterpret_cast<MemTradeWithdrawMessage*>(buf);
+                std::string error = CheckTradeWithdrawMessage(withdraw_msg);
+                if (!error.empty()) {
+                    strncpy(withdraw_msg->error, error.c_str(), kMemErrorSize - 1);
+                    WriteRepPublic(withdraw_msg, kMemTypeTradeWithdrawRep, sizeof(MemTradeWithdrawMessage));
+                    delete [] buf;
+                } else {
+                    flow_control_queue_.Push(buf);
+                }
+            }
+            break;
+        }
+        case kMemTypeQueryTradeAssetRep: {
+            const auto* msg = reinterpret_cast<const MemTradeAsset*>(body);
+            HandleQueryAssetRep(*msg);
             break;
         }
         default:
@@ -232,14 +265,13 @@ void MemBrokerServer<Broker>::HandleMessage(const AtomicBuffer& buffer, util::in
 }
 
 template <typename Broker>
-void MemBrokerServer<Broker>::SendQueryTradeAsset(MemQueryMessage* msg) {
-    broker_.SendQueryTradeAsset(msg);
+void MemBrokerServer<Broker>::SendQueryAssetReq(MemQueryMessage* msg) {
+    broker_.SendQueryAssetReq(msg);
 }
 
 template <typename Broker>
 void MemBrokerServer<Broker>::OnRspQryAsset(MemTradeAsset* asset) {
     LOG_INFO << "OnRspQryAsset " << ToString(asset);
-
     size_t body_len = sizeof(MemTradeAsset);
     MemFrameHeader frame{};
     frame.type = kMemTypeQueryTradeAssetRep;
@@ -256,19 +288,18 @@ void MemBrokerServer<Broker>::OnRspQryAsset(MemTradeAsset* asset) {
 }
 
 template <typename Broker>
-void MemBrokerServer<Broker>::HandleRspQryAsset(MemTradeAsset* asset) {
-    OnRspQryAsset(asset);
+void MemBrokerServer<Broker>::HandleQueryAssetRep(MemTradeAsset* asset) {
+
 }
 
 template <typename Broker>
-void MemBrokerServer<Broker>::SendQueryTradePosition(MemQueryMessage* msg) {
-    broker_.OnQueryTradePosition(msg);
+void MemBrokerServer<Broker>::SendQueryPositionReq(MemQueryMessage* msg) {
+    broker_.SendQueryPositionReq(msg);
 }
 
 template <typename Broker>
 void MemBrokerServer<Broker>::OnRspQryPosition(MemOnRspQueryPosition* pos) {
     LOG_INFO << "OnRspQryPosition " << ToString(&pos->item);
-
     size_t body_len = sizeof(MemOnRspQueryPosition);
     MemFrameHeader frame{};
     frame.type = kMemTypeQueryTradePositionRep;
@@ -285,19 +316,18 @@ void MemBrokerServer<Broker>::OnRspQryPosition(MemOnRspQueryPosition* pos) {
 }
 
 template <typename Broker>
-void MemBrokerServer<Broker>::HandleRspQryPosition(MemOnRspQueryPosition* pos) {
-    OnRspQryPosition(pos);
+void MemBrokerServer<Broker>::HandleQueryPositionRep(MemOnRspQueryPosition* pos) {
+
 }
 
 template <typename Broker>
-void MemBrokerServer<Broker>::SendQueryTradeKnock(MemQueryMessage* msg) {
-    broker_.OnQueryTradeKnock(msg);
+void MemBrokerServer<Broker>::SendQueryKnockReq(MemQueryMessage* msg) {
+    broker_.SendQueryKnockReq(msg);
 }
 
 template <typename Broker>
 void MemBrokerServer<Broker>::OnRspQryKnock(MemTradeKnock* knock) {
     LOG_INFO << "OnRspQryKnock " << ToString(knock);
-
     size_t body_len = sizeof(MemTradeKnock);
     MemFrameHeader frame{};
     frame.type = kMemTypeQueryTradeKnockRep;
@@ -314,42 +344,44 @@ void MemBrokerServer<Broker>::OnRspQryKnock(MemTradeKnock* knock) {
 }
 
 template <typename Broker>
-void MemBrokerServer<Broker>::HandleRspQryKnock(MemTradeKnock* knock) {
-    OnRspQryKnock(knock);
+void MemBrokerServer<Broker>::HandleQueryKnockRep(MemTradeKnock* knock) {
+
 }
 
 template <typename Broker>
-void MemBrokerServer<Broker>::SendTradeOrder(MemTradeOrderMessage* msg) {
+void MemBrokerServer<Broker>::SendTradeOrderReq(MemTradeOrderMessage* msg) {
     // 防对敲检查和超时检查
-    std::string error = risk_.HandleTradeOrderReq(msg);
+    std::string error = msg->error;
     if (error.empty()) {
-         int64_t timeout = opt_->request_timeout_ms();
-         if (msg->timeout > 0) {
-             timeout = msg->timeout;
-         }
-         if (timeout > 0) {
-             int64_t now = x::RawDateTime();
-             int64_t time_spread = x::SubRawDateTime(now, msg->timestamp);
-             if (time_spread > timeout) {
-                 error = "报单超时, 实际超时: " + std::to_string(time_spread) + ", 阈值: " + std::to_string(timeout);
-             }
-         }
+        error = risk_.HandleTradeOrderReq(msg);
+        if (error.empty()) {
+            int64_t timeout = opt_->request_timeout_ms();
+            if (msg->timeout > 0) {
+                timeout = msg->timeout;
+            }
+            if (timeout > 0) {
+                int64_t now = x::RawDateTime();
+                int64_t time_spread = x::SubRawDateTime(now, msg->timestamp);
+                if (time_spread > timeout) {
+                    error = "报单超时, 实际超时: " + std::to_string(time_spread) + ", 阈值: " + std::to_string(timeout);
+                }
+            }
+        }
     }
     if (!error.empty()) {
         strncpy(msg->error, error.c_str(), kMemErrorSize - 1);
-        WriteRepPublicTradeOrder(msg);
+        WriteRepPublic(msg, kMemTypeTradeOrderRep, sizeof(MemTradeOrderMessage) + sizeof(MemTradeOrder) * msg->items_size);
         return;
     }
     // 防对敲检查通过，加入订单簿
     risk_.OnTradeOrderReqPass(msg);
-    pos_master_->HandleOrderReq(msg);
-    broker_.SendTradeOrder(msg);
+    pos_master_->HandleTradeOrderReq(msg);
+    broker_.SendTradeOrderReq(msg);
 }
 
 template <typename Broker>
 void MemBrokerServer<Broker>::OnRspTradeOrder(MemTradeOrderMessage* msg) {
     LOG_INFO << "OnRspTradeOrder " << ToString(msg);
-
     size_t body_len = sizeof(MemTradeOrderMessage) + sizeof(MemTradeOrder) * msg->items_size;
     MemFrameHeader frame{};
     frame.type = kMemTypeTradeOrderRep;
@@ -363,6 +395,46 @@ void MemBrokerServer<Broker>::OnRspTradeOrder(MemTradeOrderMessage* msg) {
     if (result < 0) {
         LOG_WARN << "OnRspTradeOrder inner publish failed, result: " << result;
     }
+}
+
+template <typename Broker>
+void MemBrokerServer<Broker>::HandleTradeOrderRep(MemTradeOrderMessage* msg) {
+    risk_.HandleTradeOrderRep(msg);
+    pos_master_->HandleTradeOrderRep(msg);
+}
+
+template <typename Broker>
+void MemBrokerServer<Broker>::SendTradeWithdrawReq(MemTradeWithdrawMessage* msg) {
+    // 先检查 msg 中是否已有错误（流控等前置检查已赋值）
+    if (strlen(msg->error) > 0) {
+        WriteRepPublic(msg, kMemTypeTradeWithdrawRep, sizeof(MemTradeWithdrawMessage));
+        return;
+    }
+    risk_.HandleTradeWithdrawRep(msg);
+    broker_.SendTradeWithdrawReq(msg);
+}
+
+template <typename Broker>
+void MemBrokerServer<Broker>::OnRspTradeWithdraw(MemTradeWithdrawMessage* msg) {
+    LOG_INFO << "OnRspTradeWithdraw " << ToString(msg);
+    size_t body_len = sizeof(MemTradeWithdrawMessage);
+    MemFrameHeader frame{};
+    frame.type = kMemTypeTradeWithdrawRep;
+    frame.body_length = static_cast<int64_t>(body_len);
+    size_t total_len = sizeof(MemFrameHeader) + body_len;
+    std::vector<std::uint8_t> buffer(total_len, 0);
+    memcpy(buffer.data(), &frame, sizeof(MemFrameHeader));
+    memcpy(buffer.data() + sizeof(MemFrameHeader), msg, body_len);
+    AtomicBuffer ab(buffer.data(), buffer.size());
+    std::int64_t result = inner_publication_->offer(ab, 0, total_len);
+    if (result < 0) {
+        LOG_WARN << "OnRspTradeWithdraw inner publish failed, result: " << result;
+    }
+}
+
+template <typename Broker>
+void MemBrokerServer<Broker>::HandleTradeWithdrawRep(MemTradeWithdrawMessage* msg) {
+    risk_.HandleTradeWithdrawRep(msg);
 }
 
 template <typename Broker>
@@ -385,69 +457,25 @@ void MemBrokerServer<Broker>::SendTradeKnock(MemTradeKnock* msg) {
 
 template <typename Broker>
 void MemBrokerServer<Broker>::HandleTradeKnock(MemTradeKnock* msg) {
-
+    risk_.HandleTradeKnock(msg);
+    pos_master_->HandleTradeKnock(*msg);
 }
 
+// WriteRepPublic 模板：将消息写入 rep_publication_
 template <typename Broker>
-void MemBrokerServer<Broker>::SendTradeWithdraw(MemTradeWithdrawMessage* msg) {
-    broker_.SendTradeWithdraw(msg);
-}
-
-template <typename Broker>
-void MemBrokerServer<Broker>::OnRspTradeWithdraw(MemTradeWithdrawMessage* msg) {
-    LOG_INFO << "OnRspTradeWithdraw " << ToString(msg);
-
-    size_t body_len = sizeof(MemTradeWithdrawMessage);
+template <typename T>
+void MemBrokerServer<Broker>::WriteRepPublic(T* msg, int64_t frame_type, size_t body_size) {
     MemFrameHeader frame{};
-    frame.type = kMemTypeTradeWithdrawRep;
-    frame.body_length = static_cast<int64_t>(body_len);
-    size_t total_len = sizeof(MemFrameHeader) + body_len;
+    frame.type = frame_type;
+    frame.body_length = static_cast<int64_t>(body_size);
+    size_t total_len = sizeof(MemFrameHeader) + body_size;
     std::vector<std::uint8_t> buffer(total_len, 0);
     memcpy(buffer.data(), &frame, sizeof(MemFrameHeader));
-    memcpy(buffer.data() + sizeof(MemFrameHeader), msg, body_len);
-    AtomicBuffer ab(buffer.data(), buffer.size());
-    std::int64_t result = inner_publication_->offer(ab, 0, total_len);
-    if (result < 0) {
-        LOG_WARN << "OnRspTradeWithdraw inner publish failed, result: " << result;
-    }
-}
-
-template <typename Broker>
-void MemBrokerServer<Broker>::HandleRspTradeWithdraw(MemTradeWithdrawMessage* msg) {
-    OnRspTradeWithdraw(msg);
-}
-
-template <typename Broker>
-void MemBrokerServer<Broker>::WriteRepPublicTradeOrder(MemTradeOrderMessage* msg) {
-    size_t body_len = sizeof(MemTradeOrderMessage) + sizeof(MemTradeOrder) * msg->items_size;
-    MemFrameHeader frame{};
-    frame.type = kMemTypeTradeOrderRep;
-    frame.body_length = static_cast<int64_t>(body_len);
-    size_t total_len = sizeof(MemFrameHeader) + body_len;
-    std::vector<std::uint8_t> buffer(total_len, 0);
-    memcpy(buffer.data(), &frame, sizeof(MemFrameHeader));
-    memcpy(buffer.data() + sizeof(MemFrameHeader), msg, body_len);
+    memcpy(buffer.data() + sizeof(MemFrameHeader), msg, body_size);
     AtomicBuffer ab(buffer.data(), buffer.size());
     std::int64_t result = rep_publication_->offer(ab, 0, total_len);
     if (result < 0) {
-        LOG_WARN << "WriteRepPublicTradeOrder republish failed, result: " << result;
-    }
-}
-
-template <typename Broker>
-void MemBrokerServer<Broker>::WriteRepPublicWithdraw(MemTradeWithdrawMessage* msg) {
-    size_t body_len = sizeof(MemTradeWithdrawMessage);
-    MemFrameHeader frame{};
-    frame.type = kMemTypeTradeWithdrawRep;
-    frame.body_length = static_cast<int64_t>(body_len);
-    size_t total_len = sizeof(MemFrameHeader) + body_len;
-    std::vector<std::uint8_t> buffer(total_len, 0);
-    memcpy(buffer.data(), &frame, sizeof(MemFrameHeader));
-    memcpy(buffer.data() + sizeof(MemFrameHeader), msg, body_len);
-    AtomicBuffer ab(buffer.data(), buffer.size());
-    std::int64_t result = rep_publication_->offer(ab, 0, total_len);
-    if (result < 0) {
-        LOG_WARN << "WriteRepPublicWithdraw republish failed, result: " << result;
+        LOG_WARN << "WriteRepPublic republish failed, result: " << result;
     }
 }
 

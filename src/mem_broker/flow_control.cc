@@ -52,7 +52,21 @@ std::shared_ptr<FlowControlItem> FlowControlMarketQueue::GetMaxPriorityItem(int6
     }
     auto top = flow_control_queue_.top();
     if (static_cast<int64_t>(sent_ns_queue_.size()) + top->sub_order_size <= th_tps_limit_) {
-        return top;
+        if ((state_->total_cmd_size + top->sub_order_size) <= th_daily_limit_) {
+            return top;
+        } else {
+            // 超过全天阈值，给 msg 赋值错误信息
+            auto* frame = reinterpret_cast<MemFrameHeader*>(top->msg);
+            char* body = top->msg + sizeof(MemFrameHeader);
+            if (frame->type == kMemTypeTradeOrderReq) {
+                auto* order_msg = reinterpret_cast<MemTradeOrderMessage*>(body);
+                sprintf(order_msg->error, "[FAN-BROKER-ERROR] 超过全天报撤单流控阈值: %ld, 已用: %ld", th_daily_limit_, state_->total_cmd_size);
+            } else if (frame->type == kMemTypeTradeWithdrawReq) {
+                auto* withdraw_msg = reinterpret_cast<MemTradeWithdrawMessage*>(body);
+                sprintf(withdraw_msg->error, "[FAN-BROKER-ERROR] 超过全天报撤单流控阈值: %ld, 已用: %ld", th_daily_limit_, state_->total_cmd_size);
+            }
+            return top;
+        }
     } else {
         return nullptr;
     }
@@ -76,15 +90,15 @@ void FlowControlQueue::Init(MemBrokerOptionsPtr option) {
     }
 }
 
+std::shared_ptr<FlowControlMarketQueue> FlowControlQueue::GetMarketQueue(int64_t market) {
+    if (market >= 0 && market < kMarketQueueSize) {
+        return market_to_queue_[market];
+    }
+    return nullptr;
+}
+
 void FlowControlQueue::Push(char* msg) {
     auto* frame = reinterpret_cast<MemFrameHeader*>(msg);
-
-    auto get_market_queue = [this](int64_t market) -> std::shared_ptr<FlowControlMarketQueue> {
-        if (market >= 0 && market < kMarketQueueSize) {
-            return market_to_queue_[market];
-        }
-        return nullptr;
-    };
 
     if (frame->type == kMemTypeTradeOrderReq) {
         // 报单：按市场分流控队列
@@ -102,7 +116,7 @@ void FlowControlQueue::Push(char* msg) {
                 // 申购/赎回：中间优先级
                 order_amount = kFlowControlPriorityCreateRedeem;
             }
-            auto queue = get_market_queue(market);
+            auto queue = GetMarketQueue(market);
             if (queue) {
                 auto item = std::make_shared<FlowControlItem>(x::RawDateTime(), order_amount, items_size, msg);
                 queue->Push(item);
@@ -114,18 +128,22 @@ void FlowControlQueue::Push(char* msg) {
     } else if (frame->type == kMemTypeTradeWithdrawReq) {
         // 撤单：高优先级
         auto* withdraw_msg = reinterpret_cast<MemTradeWithdrawMessage*>(msg + sizeof(MemFrameHeader));
-        // order_no 格式为 "market_orderNo"，如 "1_MDBC0"，从中解出 market
         int64_t market = withdraw_msg->market;
-        if (market == 0) {
-            std::string order_no(withdraw_msg->order_no);
-            auto pos = order_no.find('_');
-            if (pos != std::string::npos) {
-                market = std::atoll(order_no.substr(0, pos).c_str());
+        int64_t withdraw_size = 1;
+        if (strlen(withdraw_msg->batch_no) >= 3) {
+            // batch_no 格式: 1_400_4324242 (market_subOrderSize_seq)
+            std::string batch_no(withdraw_msg->batch_no);
+            auto first = batch_no.find('_');
+            if (first != std::string::npos) {
+                auto second = batch_no.find('_', first + 1);
+                if (second != std::string::npos) {
+                    withdraw_size = std::atoll(batch_no.substr(first + 1, second - first - 1).c_str());
+                }
             }
         }
-        auto queue = get_market_queue(market);
+        auto queue = GetMarketQueue(market);
         if (queue) {
-            auto item = std::make_shared<FlowControlItem>(x::RawDateTime(), kFlowControlPriorityWithdraw, 1, msg);
+            auto item = std::make_shared<FlowControlItem>(x::RawDateTime(), kFlowControlPriorityWithdraw, withdraw_size, msg);
             queue->Push(item);
             return;
         } else {

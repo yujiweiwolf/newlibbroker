@@ -7,7 +7,7 @@ void TestBroker::OnInit() {
     LOG_INFO << "initialize FakeBroker ...";
 }
 
-void TestBroker::SendQueryTradeAsset(MemQueryMessage* req) {
+void TestBroker::SendQueryAssetReq(MemQueryMessage* req) {
      LOG_INFO << "query asset, fund_id: " << req->fund_id
               << ", id: " << req->id
               << ", timestamp: " << req->timestamp;
@@ -18,20 +18,20 @@ void TestBroker::SendQueryTradeAsset(MemQueryMessage* req) {
     server_->OnRspQryAsset(&asset);
 }
 
-void TestBroker::OnQueryTradePosition(MemQueryMessage* req) {
+void TestBroker::SendQueryPositionReq(MemQueryMessage* req) {
     LOG_INFO << "query position, fund_id: " << req->fund_id
              << ", id: " << req->id
              << ", timestamp: " << req->timestamp;
 }
 
-void TestBroker::OnQueryTradeKnock(MemQueryMessage* req) {
+void TestBroker::SendQueryKnockReq(MemQueryMessage* req) {
     LOG_INFO << "query knock, fund_id: " << req->fund_id
              << ", id: " << req->id
              << ", timestamp: " << req->timestamp;
 
 }
 
-void TestBroker::SendTradeOrder(MemTradeOrderMessage* req) {
+void TestBroker::SendTradeOrderReq(MemTradeOrderMessage* req) {
 //    LOG_INFO << ToString(req);
 //    for (int i = 0; i < req->items_size; ++i) {
 //        auto& order = req->items[i];
@@ -41,7 +41,7 @@ void TestBroker::SendTradeOrder(MemTradeOrderMessage* req) {
 //    server_->OnRspTradeOrder(req);
 }
 
-void TestBroker::SendTradeWithdraw(MemTradeWithdrawMessage* req) {
+void TestBroker::SendTradeWithdrawReq(MemTradeWithdrawMessage* req) {
 //    LOG_INFO << ToString(req);
 //    server_->OnRspTradeWithdraw(req);
 }

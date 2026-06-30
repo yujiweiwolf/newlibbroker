@@ -18,7 +18,7 @@ int main(int argc, char* argv[]) {
             msg.timestamp = x::RawDateTime();
             strcpy(msg.fund_id, fund_id);
             strcpy(msg.id, x::UUID().c_str());
-            server.SendQueryTradeAsset(&msg);
+            server.SendQueryAssetReq(&msg);
         }
 
         {
@@ -38,7 +38,7 @@ int main(int argc, char* argv[]) {
                 order->price = 0.1 * (j + 1);
             }
             msg->timeout = x::SteadyUnixNano();
-            server.SendTradeOrder(msg);
+            server.SendTradeOrderReq(msg);
         }
         // x::Sleep(10000);
     } catch (std::exception& e) {

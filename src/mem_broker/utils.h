@@ -29,7 +29,7 @@ std::string CreateInnerOrderNo(const co::fbs::TradeOrderT& order);
 std::string CreateInnerMatchNo(const co::fbs::TradeKnockT& knock);
 int64_t CreateOrderStatus(const co::fbs::TradeOrderT& order);
 std::string CheckTradeOrderMessage(MemTradeOrderMessage *req);
-std::string CheckTradeWithdrawMessage(MemTradeWithdrawMessage *req, int64_t trade_type);
+std::string CheckTradeWithdrawMessage(MemTradeWithdrawMessage *req);
 
 std::string GenerateRandomString(size_t length);
 void* map_file(const char* filepath, size_t size);
